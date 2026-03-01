@@ -1,4 +1,4 @@
-//! Wallpaper cycling via `swww`.
+//! Wallpaper cycling via `awww`.
 use crate::{ctx::Ctx, theme::Theme, util};
 use anyhow::Result;
 use std::{
@@ -88,7 +88,7 @@ fn pick_next<'a>(candidates: &'a [Candidate], current: Option<&str>) -> &'a Path
 
 /// Change wallpaper using swww.
 fn change_wallpaper(path: &Path) {
-    Command::new("swww")
+    Command::new("awww")
         .args(["img", &path.to_string_lossy(), "--transition-type=none"])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
