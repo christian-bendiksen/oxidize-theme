@@ -130,7 +130,13 @@ fn cmd_set(ctx: &Ctx, theme_name: &str, flags: apply::ApplyFlags) -> Result<()> 
 
 /// Read the current theme name from disk and load it.
 fn current_theme(ctx: &Ctx) -> Result<Theme> {
-    let raw = std::fs::read_to_string(&ctx.current_theme_file).unwrap_or_default();
+    let raw = match std::fs::read_to_string(&ctx.current_theme_file) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => {
+            return Err(e).with_context(|| format!("read {}", ctx.current_theme_file.display()));
+        }
+    };
     let name = raw.trim();
 
     anyhow::ensure!(

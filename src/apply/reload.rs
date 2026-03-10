@@ -23,7 +23,7 @@ pub fn run(ctx: &Ctx, kitty_rel: Option<&str>) {
 
     let kitty_conf = ctx.current_link.join(kitty_rel.unwrap_or("kitty.conf"));
     if kitty_conf.is_file() {
-        reload_kitty(&kitty_conf);
+        reload_kitty(&kitty_conf, &ctx.kitty_cache_dir);
     }
 
     pkill_signal("btop", "SIGUSR2");
@@ -44,9 +44,9 @@ fn detach(cmd: &mut Command) {
 
 // Kitty hot-reload
 /// Send `set-colors -a <conf>` to every live kitty socket.
-fn reload_kitty(conf: &std::path::Path) {
+fn reload_kitty(conf: &std::path::Path, kitty_cache_dir: &std::path::Path) {
     let conf_str = conf.to_string_lossy();
-    for sock in kitty_sockets() {
+    for sock in kitty_sockets(kitty_cache_dir) {
         let sock_uri = format!("unix:{}", sock.display());
         let success = Command::new("kitty")
             .args(["@", "--to", &sock_uri, "set-colors", "-a", &conf_str])
@@ -67,13 +67,8 @@ fn reload_kitty(conf: &std::path::Path) {
 ///
 /// kitty creates `~/.cache/kitty/kitty` plus optional numbered extras
 /// like `kitty-1`, `kitty-2`, etc.
-fn kitty_sockets() -> Vec<PathBuf> {
-    let base = match std::env::var_os("HOME") {
-        Some(h) => PathBuf::from(h).join(".cache/kitty"),
-        None => return Vec::new(),
-    };
-
-    let Ok(rd) = fs::read_dir(&base) else {
+fn kitty_sockets(base: &std::path::Path) -> Vec<PathBuf> {
+    let Ok(rd) = fs::read_dir(base) else {
         return Vec::new();
     };
 

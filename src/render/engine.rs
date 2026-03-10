@@ -36,7 +36,7 @@ fn flatten(prefix: &str, value: &toml::Value, out: &mut HashMap<String, String>)
         toml::Value::Table(map) => {
             for (k, v) in map {
                 let key = if prefix.is_empty() {
-                    k.clone()
+                    k.to_owned()
                 } else {
                     format!("{prefix}_{k}")
                 };
@@ -123,9 +123,7 @@ fn render_one(
 
     let rendered = expand(&src, vars);
 
-    let mut out_rel = rel.to_path_buf();
-    out_rel.set_extension(""); // strip .tpl
-    let out_path = out_dir.join(&out_rel);
+    let out_path = out_dir.join(&rel.with_extension("")); // strip .tpl
 
     if let Some(parent) = out_path.parent() {
         fs::create_dir_all(parent)

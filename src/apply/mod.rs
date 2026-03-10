@@ -4,6 +4,7 @@ pub mod gnome;
 pub mod reload;
 pub mod wallpaper;
 
+#[derive(Debug, Clone, Copy)]
 pub struct ApplyFlags {
     pub no_apply: bool,
     pub no_gnome: bool,

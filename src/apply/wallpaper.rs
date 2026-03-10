@@ -7,7 +7,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-/// Cycle to the next wallpaper and launch `swaybg`.
+/// Cycle to the next wallpaper and launch `awww`.
 pub fn run(ctx: &Ctx, theme: &Theme) -> Result<()> {
     let candidates = collect_candidates(ctx, theme);
 
@@ -86,7 +86,7 @@ fn pick_next<'a>(candidates: &'a [Candidate], current: Option<&str>) -> &'a Path
     &candidates[idx].path
 }
 
-/// Change wallpaper using swww.
+/// Change wallpaper using awww.
 fn change_wallpaper(path: &Path) {
     Command::new("awww")
         .args(["img", &path.to_string_lossy(), "--transition-type=none"])
