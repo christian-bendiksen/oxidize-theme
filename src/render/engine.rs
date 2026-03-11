@@ -1,7 +1,7 @@
 //! Template rendering engine and TOML variable builder.
 
-use super::parser::{Segment, parse};
-use anyhow::{Context, Result, bail};
+use super::parser::{parse, Segment};
+use anyhow::{bail, Context, Result};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -100,7 +100,7 @@ pub fn render_all(
         for tpl in templates_in(user_templates_dir) {
             let rel = tpl.strip_prefix(user_templates_dir)?.to_path_buf();
             render_one(&tpl, &rel, vars, out_dir)?;
-            claimed.insert(rel);
+            claimed.insert(rel.with_extension("")); // key = output path (no .tpl)
         }
     }
 
@@ -113,14 +113,15 @@ pub fn render_all(
                     fs::create_dir_all(parent)?;
                 }
                 fs::copy(&src, &out_path)?;
-                claimed.insert(rel);
+                claimed.insert(rel); // already no extension, key = output path
             }
         }
     }
 
     for tpl in templates_in(templates_dir) {
         let rel = tpl.strip_prefix(templates_dir)?.to_path_buf();
-        if !claimed.contains(&rel) {
+        if !claimed.contains(&rel.with_extension("")) {
+            // compare against output path
             render_one(&tpl, &rel, vars, out_dir)?;
         }
     }
@@ -198,9 +199,8 @@ fn theme_files_in(dir: &Path) -> impl Iterator<Item = PathBuf> {
     WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_type().is_file() && !is_theme_metadata(e.path())
-        }).map(|e| e.into_path())
+        .filter(|e| e.file_type().is_file() && !is_theme_metadata(e.path()))
+        .map(|e| e.into_path())
 }
 
 fn is_theme_metadata(path: &Path) -> bool {
