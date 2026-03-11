@@ -100,7 +100,7 @@ fn cmd_set(ctx: &Ctx, theme_name: &str, flags: apply::ApplyFlags) -> Result<()> 
 
     // Stage → commit (atomic rename).
     let txn = Transaction::begin(ctx).context("begin transaction")?;
-    render::render_all(ctx, txn.stage(), &theme.vars).context("render templates")?;
+    render::render_all(ctx, &theme.root, txn.stage(), &theme.vars).context("render templates")?;
     stage_assets(&theme, txn.stage()).context("stage assets")?;
     txn.commit().context("commit transaction")?;
 

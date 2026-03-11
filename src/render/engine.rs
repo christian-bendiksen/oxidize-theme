@@ -83,6 +83,7 @@ fn hex_to_rgb(hex: &str) -> Option<String> {
 pub fn render_all(
     templates_dir: &Path,
     user_templates_dir: &Path,
+    theme_files_dir: &Path,
     out_dir: &Path,
     vars: &HashMap<String, String>,
 ) -> Result<()> {
@@ -91,19 +92,35 @@ pub fn render_all(
     }
     fs::create_dir_all(out_dir).context("create output directory")?;
 
-    let mut user_provided: HashSet<PathBuf> = HashSet::new();
+    // a hashset bag with claimed items that will not generate with
+    // the template enginge.
+    let mut claimed: HashSet<PathBuf> = HashSet::new();
 
     if user_templates_dir.is_dir() {
         for tpl in templates_in(user_templates_dir) {
             let rel = tpl.strip_prefix(user_templates_dir)?.to_path_buf();
             render_one(&tpl, &rel, vars, out_dir)?;
-            user_provided.insert(rel);
+            claimed.insert(rel);
+        }
+    }
+
+    if theme_files_dir.is_dir() {
+        for src in theme_files_in(theme_files_dir) {
+            let rel = src.strip_prefix(theme_files_dir)?.to_path_buf();
+            if !claimed.contains(&rel) {
+                let out_path = out_dir.join(&rel);
+                if let Some(parent) = out_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::copy(&src, &out_path)?;
+                claimed.insert(rel);
+            }
         }
     }
 
     for tpl in templates_in(templates_dir) {
         let rel = tpl.strip_prefix(templates_dir)?.to_path_buf();
-        if !user_provided.contains(&rel) {
+        if !claimed.contains(&rel) {
             render_one(&tpl, &rel, vars, out_dir)?;
         }
     }
@@ -175,4 +192,20 @@ fn templates_in(dir: &Path) -> impl Iterator<Item = PathBuf> {
             e.file_type().is_file() && e.path().extension().and_then(|x| x.to_str()) == Some("tpl")
         })
         .map(|e| e.into_path())
+}
+
+fn theme_files_in(dir: &Path) -> impl Iterator<Item = PathBuf> {
+    WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_type().is_file() && !is_theme_metadata(e.path())
+        }).map(|e| e.into_path())
+}
+
+fn is_theme_metadata(path: &Path) -> bool {
+    matches!(
+        path.file_name().and_then(|n| n.to_str()),
+        Some("colors.toml" | "light.mode" | "icons.theme" | "backgrounds")
+    )
 }
