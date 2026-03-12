@@ -1,6 +1,7 @@
 //! Atomic publish via a temp-dir → rename protocol.
 use crate::{ctx::Ctx, util};
 use anyhow::{Context, Result};
+use rustix::fs::{renameat_with, CWD, RenameFlags};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -44,14 +45,16 @@ impl Transaction {
         // error path that follows.
         let stage_path = self.stage.keep();
 
-        // Remove the old live tree if it exists.
         if fs::symlink_metadata(&self.live).is_ok() {
-            util::remove_any(&self.live).context("remove stale live dir")?;
+            // live/ exists - exchange it with the staged tree atomically.
+            renameat_with(CWD, &stage_path, CWD, &self.live, RenameFlags::EXCHANGE).context("atomic exchange stage <-> live")?;
+            // remove the displaced old tree
+            fs::remove_dir_all(&stage_path).context("remove old live dir")?;
+        } else {
+            // live/ does not exist yet, plain rename is sufficient.
+            fs::rename(&stage_path, &self.live).context("rename stage -> live")?;
         }
-
-        // Atomic swap: both paths are inside `generated/` on the same filesystem.
-        fs::rename(&stage_path, &self.live).context("rename stage -> live")?;
-
+        
         // Point the `current` convenience symlink at the new live tree.
         util::symlink_force(&self.live, &self.link).context("update current symlink")
     }

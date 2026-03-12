@@ -204,8 +204,7 @@ fn theme_files_in(dir: &Path) -> impl Iterator<Item = PathBuf> {
 }
 
 fn is_theme_metadata(path: &Path) -> bool {
-    matches!(
-        path.file_name().and_then(|n| n.to_str()),
-        Some("colors.toml" | "light.mode" | "icons.theme" | "backgrounds")
-    )
+    path.components().any(|c| {
+        matches!(c.as_os_str().to_str(), Some("colors.toml" | "light.mode" | "icons.theme" | "backgrounds"))
+    })
 }
