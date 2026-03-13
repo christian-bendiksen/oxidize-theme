@@ -2,13 +2,11 @@
 
 use crate::ctx::Ctx;
 use std::{
-    fs,
-    path::PathBuf,
     process::{Command, Stdio},
 };
 
 /// Reload waybar, mako, kitty, btop, and XDG portals.
-pub fn run(ctx: &Ctx, kitty_rel: Option<&str>) {
+pub fn run(ctx: &Ctx) {
     pkill_signal("waybar", "SIGUSR2");
 
     detach(Command::new("makoctl").arg("reload"));
@@ -20,13 +18,10 @@ pub fn run(ctx: &Ctx, kitty_rel: Option<&str>) {
     ] {
         detach(Command::new("systemctl").args(["--user", "restart", service]));
     }
-
-    let kitty_conf = ctx.current_link.join(kitty_rel.unwrap_or("kitty.conf"));
-    if kitty_conf.is_file() {
-        reload_kitty(&kitty_conf, &ctx.kitty_cache_dir);
-    }
-
     pkill_signal("btop", "SIGUSR2");
+    pkill_signal("kitty", "SIGUSR1");
+    pkill_signal("ghostty", "SIGUSR1");
+    reload_alacritty(ctx);
 }
 
 fn pkill_signal(name: &str, signal: &str) {
@@ -42,58 +37,11 @@ fn detach(cmd: &mut Command) {
         .ok();
 }
 
-// Kitty hot-reload
-/// Send `set-colors -a <conf>` to every live kitty socket.
-fn reload_kitty(conf: &std::path::Path, kitty_cache_dir: &std::path::Path) {
-    let conf_str = conf.to_string_lossy();
-    for sock in kitty_sockets(kitty_cache_dir) {
-        let sock_uri = format!("unix:{}", sock.display());
-        let success = Command::new("kitty")
-            .args(["@", "--to", &sock_uri, "set-colors", "-a", &conf_str])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map_or(false, |s| s.success());
-
-        // Stale sockets accumulate when kitty windows close without cleanup.
-        if !success {
-            let _ = fs::remove_file(&sock);
-        }
+// 'touch' alacritty.toml for alacritty to hot reload.
+// TODO: need a better lookup structure
+fn reload_alacritty(ctx: &Ctx) {
+    let conf = ctx.config_dir.parent().unwrap_or(&ctx.config_dir).join("alacritty/alacritty.toml");
+    if conf.exists() {
+        detach(Command::new("touch").arg(conf));
     }
-}
-
-/// Enumerate kitty UNIX sockets under `~/.cache/kitty/`.
-///
-/// kitty creates `~/.cache/kitty/kitty` plus optional numbered extras
-/// like `kitty-1`, `kitty-2`, etc.
-fn kitty_sockets(base: &std::path::Path) -> Vec<PathBuf> {
-    let Ok(rd) = fs::read_dir(base) else {
-        return Vec::new();
-    };
-
-    rd.flatten()
-        .filter_map(|e| {
-            let path = e.path();
-            let name = path.file_name()?.to_str()?;
-            if (name == "kitty" || name.starts_with("kitty-")) && is_socket(&path) {
-                Some(path)
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-#[cfg(unix)]
-fn is_socket(p: &std::path::Path) -> bool {
-    use std::os::unix::fs::FileTypeExt;
-    fs::symlink_metadata(p)
-        .map(|m| m.file_type().is_socket())
-        .unwrap_or(false)
-}
-
-#[cfg(not(unix))]
-fn is_socket(_: &std::path::Path) -> bool {
-    false
 }

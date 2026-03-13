@@ -14,7 +14,6 @@ pub struct Ctx {
     pub current_link: PathBuf,
     pub current_theme_file: PathBuf,
     pub background_link: PathBuf,
-    pub kitty_cache_dir: PathBuf,
 }
 
 impl Ctx {
@@ -30,7 +29,6 @@ impl Ctx {
         let config_dir = PathBuf::from(xdg).join("oxidize");
         let themes = config_dir.join("themes");
         let generated_dir = themes.join("generated");
-        let kitty_cache_dir = PathBuf::from(&home).join(".cache/kitty");
 
         Ok(Self {
             data_dir: themes.join("data"),
@@ -42,7 +40,6 @@ impl Ctx {
             background_link: themes.join("background"),
             generated_dir,
             config_dir,
-            kitty_cache_dir,
         })
     }
 }

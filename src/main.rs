@@ -37,11 +37,7 @@ enum Cmd {
     },
 
     /// Reload apps without changing the theme
-    Reload {
-        /// Kitty config path relative to themes/current/ (default: kitty.conf)
-        #[arg(long)]
-        kitty: Option<String>,
-    },
+    Reload,
 
     /// Apply GNOME color-scheme and gtk-theme for the current theme
     Gnome {
@@ -77,8 +73,8 @@ fn main() -> Result<()> {
             },
         ),
 
-        Cmd::Reload { kitty } => {
-            apply::reload::run(&ctx, kitty.as_deref());
+        Cmd::Reload => {
+            apply::reload::run(&ctx);
             Ok(())
         }
 
@@ -117,7 +113,7 @@ fn cmd_set(ctx: &Ctx, theme_name: &str, flags: apply::ApplyFlags) -> Result<()> 
         apply::gnome::run(&theme, flags.no_icons);
     }
     if !flags.no_reload {
-        apply::reload::run(ctx, None);
+        apply::reload::run(ctx);
     }
     if !flags.no_wallpaper {
         if let Err(e) = apply::wallpaper::run(ctx, &theme) {
